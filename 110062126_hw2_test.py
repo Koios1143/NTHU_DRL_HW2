@@ -191,7 +191,7 @@ class DDQN(nn.Module):
         return cnn
     
     def load_ckpt(self, ckpt_dir):
-        self.load_state_dict(torch.load(ckpt_dir))
+        self.load_state_dict(torch.load(ckpt_dir, map_location=torch.device('cpu')))
 
 class DDDQN(nn.Module):
     """
