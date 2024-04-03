@@ -2,3 +2,4 @@ torch
 tqdm
 requests
 argparse
+torchvision==0.17.2
