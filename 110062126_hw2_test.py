@@ -209,9 +209,9 @@ class DDDQN(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.online_net = DDQN(input_dim=input_dim, output_dim=output_dim, n_actions=n_actions)
+        # self.online_net = DDQN(input_dim=input_dim, output_dim=output_dim, n_actions=n_actions)
         self.target_net = DDQN(input_dim=input_dim, output_dim=output_dim, n_actions=n_actions)
-        self.target_net.load_state_dict(self.online_net.state_dict())
+        # self.target_net.load_state_dict(self.online_net.state_dict())
         for p in self.target_net.parameters():
             p.requires_grad = False
         self.to(self.device)
@@ -230,54 +230,56 @@ class Agent():
         state_dim = (4, 84, 84)
         self.net = DDDQN(input_dim=state_dim, ckpt_dir='./110062126_hw2_data.py')
         self.net.load_ckpt('./110062126_hw2_data.py')
-        self.last_action = 0
-        self.deque = deque(maxlen=4)
         self.action_space = [i for i in range(12)]
-        self.counter = 1
+        self.transforms1 = T.Compose(
+            [T.ToTensor(), T.Grayscale()]
+        )
+        self.transforms2 = T.Compose(
+            [T.Resize((84, 84), antialias=True), T.Normalize(0, 255)]
+        )
+        self.reset()
+    
+    def reset(self):
+        self.timestamp = 0
+        self.frame_skip = 0
+        self.last_action = None
+        self.frames = deque(maxlen=4)
+    
+    def observe(self, observation):
+        observation = self.transforms1(observation.astype('int64').copy())
+        observation = self.transforms2(observation.float()).squeeze(0)
+        return observation
 
-    # [NOTE] old name: select_action
     def act(self, observation):
         """
         Choose action according to Advantage
 
         Inputs:
-            observation (LazyFrame) : An observation of the current state
+            observation (numpy array) : An observation of the current state
         Outputs:
             action_idx (int) : An integer representing the selected action
         """
-        # preprocess
-        ## Skip Frame
-        if self.counter < 4:
-            self.counter += 1
-            return self.last_action
-        self.counter = 0
-        ## Gray Scale
-        def permute_orientation(obs):
-            # Since torchvision use [C, H, W] rather than [H, W, C], we should transform it first
-            return T.ToTensor()(obs.astype('int64').copy())
-        observation = permute_orientation(observation)
-        observation = T.Grayscale()(observation)
-        ## Downsample
-        transforms = T.Compose(
-            [T.Resize((84, 84) + (), antialias=True), T.Normalize(0, 255)]
-        )
-        observation = transforms(observation.float()).squeeze(0)
-
-        ## Frame Stack
-        self.deque.append(observation)
-        if len(self.deque) != 4:
-            return self.last_action
-        observation = gym.wrappers.frame_stack.LazyFrames(list(self.deque))
-        observation = observation[0].__array__() if isinstance(observation, tuple) else observation.__array__()
-        observation = torch.tensor(observation, device=self.device).unsqueeze(0)
+        # print(self.timestamp)
+        if self.timestamp == 4200:
+            self.reset()
+        if self.frame_skip % 4 == 0:
+            observation = self.transforms1(observation.astype('int64').copy())
+            observation = self.transforms2(observation.float()).squeeze(0)
+            while len(self.frames) < 4:
+                self.frames.append(observation)
+            self.frames.append(observation)
+            observation = gym.wrappers.frame_stack.LazyFrames(list(self.frames))
+            observation = observation[0].__array__() if isinstance(observation, tuple) else observation.__array__()
+            observation = torch.tensor(observation, device=self.device).unsqueeze(0)
+            _, advantage = self.net.target_net.forward(observation)
+            prob = nn.Softmax(dim=-1)(advantage/0.3)
+            prob = prob.cpu().detach().numpy()[0]
+            self.last_action = np.random.choice(self.action_space, p=prob)
+        self.frame_skip += 1
+        self.timestamp += 1
         
-        _, advantage = self.net.target_net.forward(observation)
-        prob = nn.Softmax(dim=-1)(advantage/0.2)
-        prob = prob.cpu().detach().numpy()[0]
-        # action = np.argmax(prob)
-        action = np.random.choice(self.action_space, p=prob)
-        self.last_action = action
-        return action
+        return self.last_action
+
 
 if __name__ == '__main__':
     # Create Environment
@@ -303,7 +305,7 @@ if __name__ == '__main__':
             tot_reward += reward
             r += reward
             state = next_state
-            # env.render()
+            # env.render('human')
         print(f'Game #{i}: {r}')
     env.close()
     print(f'mean_reward: {tot_reward/50}')
