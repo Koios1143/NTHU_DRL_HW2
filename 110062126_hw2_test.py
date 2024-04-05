@@ -237,6 +237,7 @@ class Agent():
         self.transforms2 = T.Compose(
             [T.Resize((84, 84), antialias=True), T.Normalize(0, 255)]
         )
+        np.random.seed(1143)
         self.reset()
     
     def reset(self):
