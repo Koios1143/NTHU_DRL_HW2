@@ -237,10 +237,10 @@ class Agent():
         self.transforms2 = T.Compose(
             [T.Resize((84, 84), antialias=True), T.Normalize(0, 255)]
         )
-        np.random.seed(1143)
         self.reset()
     
     def reset(self):
+        np.random.seed(20240406)
         self.timestamp = 0
         self.frame_skip = 0
         self.last_action = None
@@ -261,7 +261,7 @@ class Agent():
             action_idx (int) : An integer representing the selected action
         """
         # print(self.timestamp)
-        if self.timestamp == 4200:
+        if self.timestamp == 10496:
             self.reset()
         if self.frame_skip % 4 == 0:
             observation = self.transforms1(observation.astype('int64').copy())
