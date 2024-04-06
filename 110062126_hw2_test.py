@@ -240,7 +240,7 @@ class Agent():
         self.reset()
     
     def reset(self):
-        np.random.seed(20240406)
+        np.random.seed(1116)
         self.timestamp = 0
         self.frame_skip = 0
         self.last_action = None
@@ -261,7 +261,7 @@ class Agent():
             action_idx (int) : An integer representing the selected action
         """
         # print(self.timestamp)
-        if self.timestamp == 10496:
+        if self.timestamp == 3448:
             self.reset()
         if self.frame_skip % 4 == 0:
             observation = self.transforms1(observation.astype('int64').copy())
